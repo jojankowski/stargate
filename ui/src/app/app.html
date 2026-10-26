@@ -1,0 +1,67 @@
+<header class="header">
+  <h1>Stargate</h1>
+  <span>Astronaut Career Tracking System</span>
+</header>
+
+<main class="layout">
+  <section class="panel">
+    @if (loading()) {
+      <div class="progress" role="progressbar" aria-label="Loading people"></div>
+    }
+
+    <form class="add-person" (submit)="addPerson($event)">
+      <input
+        [value]="newName()"
+        (input)="newName.set($any($event.target).value)"
+        placeholder="Add a person by name"
+        aria-label="New person's name"
+      />
+      <button class="primary" type="submit" [disabled]="!newName().trim() || adding()">Add</button>
+    </form>
+    @if (addError(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+
+    <input
+      class="search"
+      type="search"
+      [value]="search()"
+      (input)="search.set($any($event.target).value)"
+      placeholder="Search"
+      aria-label="Search people"
+    />
+
+    @if (loadError(); as message) {
+      <p class="error" role="alert">
+        {{ message }}
+        <button class="link" (click)="loadPeople()">Try again</button>
+      </p>
+    } @else if (!loading() && visiblePeople().length === 0) {
+      <p class="muted empty">No one found.</p>
+    }
+
+    <ul class="people">
+      @for (person of visiblePeople(); track person.personId) {
+        @let status = statusOf(person);
+        <li>
+          <button
+            class="person"
+            [class.selected]="person.name === selectedName()"
+            (click)="selectedName.set(person.name)"
+          >
+            <span class="name">{{ person.name }}</span>
+            <span class="badge" [class]="'badge ' + status">{{ statusLabels[status] }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section class="panel">
+    @if (selectedName(); as name) {
+      <app-person-detail [name]="name" (saved)="loadPeople()" />
+    } @else {
+      <p class="muted placeholder">Pick someone from the list to see their duties.</p>
+    }
+  </section>
+</main>

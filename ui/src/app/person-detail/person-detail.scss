@@ -1,0 +1,74 @@
+:host {
+  display: block;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+
+  h2 {
+    font-size: 22px;
+  }
+}
+
+h3 {
+  margin: 24px 0 12px;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+// a line with a dot for each duty
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 20px;
+  border-left: 2px solid var(--border);
+
+  li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 16px;
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -27px;
+      top: 5px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+    }
+
+    &.current::before {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    &.retired::before {
+      background: var(--retired);
+      border-color: var(--retired);
+    }
+  }
+}
+
+.duty-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .duty-form {
+    grid-template-columns: 1fr;
+  }
+}

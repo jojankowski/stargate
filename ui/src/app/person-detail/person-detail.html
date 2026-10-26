@@ -1,0 +1,57 @@
+@if (loading()) {
+  <div class="progress" role="progressbar" aria-label="Loading duties"></div>
+}
+
+@if (loadError(); as message) {
+  <p class="error" role="alert">
+    {{ message }}
+    <button class="link" (click)="load()">Try again</button>
+  </p>
+} @else if (person(); as p) {
+  <div class="heading">
+    <h2>{{ p.name }}</h2>
+    <span class="badge" [class]="'badge ' + status()">{{ statusLabels[status()] }}</span>
+  </div>
+
+  @if (p.careerStartDate) {
+    <p class="muted">
+      {{ p.currentRank }} · {{ status() === 'retired' ? 'Retired' : p.currentDutyTitle }} ·
+      {{ p.careerStartDate | date: 'mediumDate' }} –
+      {{ p.careerEndDate ? (p.careerEndDate | date: 'mediumDate') : 'present' }}
+    </p>
+  }
+
+  <h3>Duty history</h3>
+  @if (duties().length === 0) {
+    <p class="muted">No astronaut duties yet.</p>
+  } @else {
+    <ol class="timeline">
+      @for (duty of duties(); track duty.id; let first = $first) {
+        @let retired = isRetired(duty.dutyTitle);
+        <li [class.current]="first && !retired" [class.retired]="retired">
+          <strong>{{ retired ? 'Retired' : duty.dutyTitle }}</strong>
+          <span class="muted">
+            {{ duty.rank }} · {{ duty.dutyStartDate | date: 'mediumDate' }}
+            @if (!retired) {
+              – {{ duty.dutyEndDate ? (duty.dutyEndDate | date: 'mediumDate') : 'present' }}
+            }
+          </span>
+        </li>
+      }
+    </ol>
+  }
+
+  @if (status() !== 'retired') {
+    <h3>Add a duty</h3>
+    <form class="duty-form" (submit)="addDuty($event)">
+      <input [value]="rank()" (input)="rank.set($any($event.target).value)" placeholder="Rank" aria-label="Rank" required />
+      <input [value]="dutyTitle()" (input)="dutyTitle.set($any($event.target).value)" placeholder="Duty title" aria-label="Duty title" required />
+      <input type="date" [value]="startDate()" (input)="startDate.set($any($event.target).value)" aria-label="Start date" required />
+      <button class="primary" type="submit" [disabled]="saving()">Add</button>
+    </form>
+
+    @if (saveError(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+  }
+}

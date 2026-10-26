@@ -1,63 +1,78 @@
-﻿<!--v004-->
 # Stargate
 
-***
+Solution for the Stargate exercise. Original instructions are in [EXERCISE.md](EXERCISE.md). The first commit is the code as it was given to me, so you can diff against it to see what changed.
 
-## Astronaut Career Tracking System (ACTS)
+## Setup
 
-ACTS is used as a tool to maintain a record of all the People that have served as Astronauts. When serving as an Astronaut, your *Job* (Duty) is tracked by your Rank, Title and the Start and End Dates of the Duty.
+Needs the .NET 8 SDK, Node 22+, and the EF tools:
 
-The People that exist in this system are not all Astronauts. ACTS maintains a master list of People and Duties that are updated from an external service (not controlled by ACTS). The update schedule is determined by the external service.
+```
+dotnet tool install --global dotnet-ef --version 8.0.*
+```
 
-## Definitions
+API - runs on http://localhost:5204 (Swagger at /swagger):
 
-1. A person's astronaut assignment is the Astronaut Duty.
-1. A person's current astronaut information is stored in the Astronaut Detail table.
-1. A person's list of astronaut assignments is stored in the Astronaut Duty table.
+```
+cd api
+dotnet ef database update
+dotnet run
+```
 
-## Requirements
+UI - runs on http://localhost:4200 and needs the API running:
 
-##### Enhance the Stargate API (Required)
+```
+cd ui
+npm install
+npm start
+```
 
-The REST API is expected to do the following:
+Tests - from the root folder:
 
-1. Retrieve a person by name.
-1. Retrieve all people.
-1. Add/update a person by name.
-1. Retrieve Astronaut Duty by name.
-1. Add an Astronaut Duty.
+```
+dotnet test
+```
 
-##### Implement a user interface: (Encouraged)
+## Fixes
 
-The UI is expected to do the following:
+- SQL injection in three of the queries (name was concatenated into the SQL). Switched to Dapper parameters. This also fixes names with an apostrophe.
+- `GET /AstronautDuty/{name}` was calling `GetPersonByName`, so it never returned duties.
+- Unknown names returned a 200 with `person: null`, and the duties query threw a null reference. Both are 404s now.
+- `CreatePersonPreProcessor` wasn't registered with MediatR so the duplicate name check never ran.
+- `POST /AstronautDuty` had no try/catch.
+- Raw exception messages were being returned to the client.
+- `CareerStartDate` was nullable in the migration but not in the model. Added a migration for it.
+- Duplicate duty check wasn't filtered by person, and compared a date with a time to a date without one.
+- Career end date was the same day as retirement (instead of the day before) when RETIRED was the first duty.
+- Added a unique index on `Person.Name` (case insensitive) so the DB enforces rule 1 and not just the pre-processor.
 
-1. Successfully implement a web application that demonstrates production level quality. Angular is preferred.
-1. Implement call(s) to retrieve an individual's astronaut duties.
-1. Display the progress of the process and the results in a visually sophisticated and appealing manner.
+Also added `PUT /Person/{name}` to rename someone, since that's the only thing you can update on a person.
 
-## Tasks
+## Assumptions
 
-Overview
-Examine the code, find and resolve any flaws, if any exist. Identify design patterns and follow or change them. Provide fix(es) and be prepared to describe the changes.
+- New duties have to start after the current one. I reject back-dated duties rather than inserting them into the history.
+- No new duties after someone retires.
+- RETIRED can't be someone's first duty.
+- RETIRED and names aren't case sensitive.
+- Dates are whole days, any time portion gets dropped.
 
-1. Generate the database
-   * This is your source and storage location
-1. Enforce the rules
-1. Improve defensive coding
-1. Add unit tests
-   * identify the most impactful methods requiring tests
-   * reach >50% code coverage
-1. Implement process logging
-   * Log exceptions
-   * Log successes
-   * Store the logs in the database
+## Logging
 
-## Rules
+`LoggingBehavior` is a MediatR pipeline behavior that writes every request to the `ProcessLog` table as Success, Rejected or Error. Bad request bodies get rejected by ASP.NET before they reach MediatR, so `LogValidationErrorsFilter` logs those.
 
-1. A Person is uniquely identified by their Name.
-1. A Person who has not had an astronaut assignment will not have Astronaut records.
-1. A Person will only ever hold one current Astronaut Duty Title, Start Date, and Rank at a time.
-1. A Person's Current Duty will not have a Duty End Date.
-1. A Person's Previous Duty End Date is set to the day before the New Astronaut Duty Start Date when a new Astronaut Duty is received for a Person.
-1. A Person is classified as 'Retired' when a Duty Title is 'RETIRED'.
-1. A Person's Career End Date is one day before the Retired Duty Start Date.
+The insert uses Dapper instead of EF. If the handler's SaveChanges failed, the bad changes are still tracked in the context and EF would try to save them again with the log.
+
+## Tests
+
+40 tests, ~75% line coverage. They use an in-memory SQLite db built from the migrations instead of the EF InMemory provider, which can't run the Dapper queries and doesn't enforce unique indexes.
+
+## UI
+
+Single page. People list with search and an add form on the left. Click someone to see their duty history and add a new duty (use RETIRED as the title to retire them).
+
+## Notes / next steps
+
+- .NET 8 goes out of support in November 2026 and a few of the packages have known vulnerabilities. Would upgrade to .NET 10.
+- Kept MediatR on 12.x - newer versions need a paid license.
+- Two duties posted for the same person at the same time could both pass the "after the current duty" check. Should wrap the check and insert in a transaction.
+- Paging on the people list, and some cleanup for old log rows.
+- No UI tests yet.
